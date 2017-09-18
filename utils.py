@@ -1,5 +1,6 @@
 import random
 import time
+import ftplib
 import os.path
 import os
 import signal
@@ -35,7 +36,7 @@ class Recorder():
 	def run(self):
 		#record = 'arecord -D hw:1,0 -r 44100 -f S16_LE ' + self.folder + self.filename + '.wav'
 		#self.p = subprocess.Popen(record, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
-		text_file = open(self.folder + self.filename, "w")
+		text_file = open(self.folder + self.filename + '.wav', "w")
 		text_file.write('hello world')
 		text_file.close()
 		time.sleep(1)
@@ -62,6 +63,9 @@ class InputClass:
 
 class Database:
 	def __init__(self, folder, ssn, filename):
+		self.website = 'jacobschnedler.dk'
+		self.session = ftplib.FTP('ftp.jacobschnedler.dk', self.website, '4Vreiya8')
+		self.session.cwd('pythontesting')
 		self.client = MongoClient() # connecting to localhost
 		self.db = self.client.recorderdatabase
 		self.filecollection = self.db.filecollection
@@ -69,10 +73,22 @@ class Database:
 		self.folder = folder
 		self.ssn = ssn
 		self.filename = filename
+		self.fileid = ''
 
 	def addfile(self):
-		print('adding file til collection')
-		self.filecollection.insert_one({self.folder + self.filename: 1})
+		print('adding file url to collection')
+		self.filecollection.insert_one({'owner': self.ssn, 'fileurl': self.geturl()})
+
+	def geturl(self):
+		url = 'pythontesting' + '.' + self.website + '/' +self.filename
+		return url
+
+	def upload(self):
+		file = open(self.folder + self.filename + '.wav', 'rb')
+		filename = "stor " + self.filename  # file to send
+		self.session.storbinary(filename, file)  # send the file
+		file.close()
+		self.session.quit()
 
 	def adduser(self):
 		post = {"ssn": self.ssn}
@@ -80,5 +96,5 @@ class Database:
 		print('added user to collection')
 
 	def addfiletouser(self):
-		self.usercollection.update_one({'ssn': self.ssn}, {'$push': {'soundfiles': self.filename}}, upsert = True)
+		self.usercollection.update_one({'ssn': self.ssn}, {'$push': {'soundfiles': str(self.geturl())}}, upsert=True)
 		print('linked file to user')

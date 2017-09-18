@@ -1,5 +1,6 @@
 from utils import Recorder, Database, InputClass, CardReader
-import time, os
+import time
+import os
 
 ssn = None
 folder = 'soundfiles/'
@@ -12,11 +13,11 @@ def ssnreceived():
 		card = str(CardReader.read()).strip()
 
 		if len(str(card)) == 10:
-			ssn = card
+			ssn = card + '-' + str(time.strftime("%d-%m-%Y"))
 		else:
 			result = InputClass()
 			if len(str(result)):
-				ssn = result
+				ssn = str(result) + '-' + str(time.strftime("%d-%m-%Y"))
 		return True
 	print("moving on with ssn: " + ssn)
 	return False
@@ -48,12 +49,12 @@ def main():
 				runbool = False
 			time.sleep(0.2)
 			print(stop)
-		print(str(rec))
 		if rec is not None:
 			rec.stop()
 		filename = ssn
-		if os.path.isfile(folder + filename):
+		if os.path.isfile(folder + filename + '.wav'):
 			db = Database(folder, ssn, filename)
+			db.upload()
 			db.adduser()
 			db.addfile()
 			db.addfiletouser()

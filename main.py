@@ -1,16 +1,15 @@
-from utils import Recorder, Upload, InputClass, CardReader
+from utils import Recorder, Database, InputClass, CardReader
 import time, os
 
 ssn = None
 folder = 'soundfiles/'
 
 
-def waitforssn():
+def ssnreceived():
 	global ssn
 	print(ssn)
 	while ssn is None:
 		card = str(CardReader.read()).strip()
-		#print("length of card: " + str(len(str(card))))
 
 		if len(str(card)) == 10:
 			ssn = card
@@ -18,8 +17,9 @@ def waitforssn():
 			result = InputClass()
 			if len(str(result)):
 				ssn = result
+		return True
 	print("moving on with ssn: " + ssn)
-	return True
+	return False
 
 
 def mkdir():
@@ -34,10 +34,12 @@ def main():
 	runbool = True
 	while runbool:
 		mkdir()
+		ssn = None
 		print("Program started")
-		if waitforssn():
-			rec = Recorder(ssn, folder)
-			rec.run()
+		while not ssnreceived():
+			print('waiting for ssn')
+		rec = Recorder(ssn,folder)
+		rec.run()
 		stop = None
 		while stop is None:
 			stop = input('Enter something to stop the recording')
@@ -46,16 +48,18 @@ def main():
 				runbool = False
 			time.sleep(0.2)
 			print(stop)
+		print(str(rec))
 		if rec is not None:
 			rec.stop()
 		filename = ssn
-		if os.path.isfile(folder + filename + '.wav'):
-			ul = Upload(folder)
-			while not ul.upload(filename):
-				time.sleep(0.02)
+		if os.path.isfile(folder + filename):
+			db = Database(folder, ssn, filename)
+			db.adduser()
+			db.addfile()
+			db.addfiletouser()
+
 		else:
-			print('not working, folder + filename = ' + folder + filename)
-		ssn = None
-		stop = None
+			print('Not added to database')
+
 
 main()

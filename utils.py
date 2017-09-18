@@ -1,10 +1,10 @@
-import ftplib
 import random
 import time
 import os.path
 import os
 import signal
 import subprocess
+from pymongo import MongoClient
 
 
 class CardReader:
@@ -20,19 +20,27 @@ class CardReader:
 
 class Recorder():
 
-	def __init__(self, name, folder):
-		self.name = name
+	def __init__(self, filename, folder):
+		self.filename = filename
 		self.folder = folder
 		self.p = None
+		self.condition = True
 
 	def stop(self):
-		if self.p is not None:
-			os.killpg(os.getpgid(self.p.pid), signal.SIGTERM)
-			print('Stop function called')
+		#if self.p is not None:
+			#os.killpg(os.getpgid(self.p.pid), signal.SIGTERM)
+		print('Stop function called')
+		self.condition = False
 
 	def run(self):
-		record = 'arecord -D hw:1,0 -r 44100 -f S16_LE ' + self.folder + self.name + '.wav'
-		self.p = subprocess.Popen(record, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+		#record = 'arecord -D hw:1,0 -r 44100 -f S16_LE ' + self.folder + self.filename + '.wav'
+		#self.p = subprocess.Popen(record, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+		text_file = open(self.folder + self.filename, "w")
+		text_file.write('hello world')
+		text_file.close()
+		time.sleep(1)
+		print('wrote hello world')
+
 
 
 class InputClass:
@@ -52,24 +60,25 @@ class InputClass:
 			self.ask()
 
 
-class Upload:
-	def __init__(self, folder):
-		self.session = ftplib.FTP('ftp.jacobschnedler.dk', 'jacobschnedler.dk', '4Vreiya8')
-		self.session.cwd('pythontesting')
+class Database:
+	def __init__(self, folder, ssn, filename):
+		self.client = MongoClient() # connecting to localhost
+		self.db = self.client.recorderdatabase
+		self.filecollection = self.db.filecollection
+		self.usercollection = self.db.usercollection
 		self.folder = folder
+		self.ssn = ssn
+		self.filename = filename
 
+	def addfile(self):
+		print('adding file til collection')
+		self.filecollection.insert_one({self.folder + self.filename: 1})
 
-	def upload(self, filename):
-		filename = filename + '.wav'
-		print('gonna try uploading this file: ' + self.folder + filename)
-		try:
-			file = open(self.folder + filename, 'rb')
-			filename = 'stor ' + filename  # file to send
-			self.session.storbinary(filename, file)  # send the file
-			file.close()
-		except:
-			pass
-			print('upload failed but moving on')
-		print('uploaded: ' + filename)
-		self.session.quit()
-		return True
+	def adduser(self):
+		post = {"ssn": self.ssn}
+		self.usercollection.insert_one(post)
+		print('added user to collection')
+
+	def addfiletouser(self):
+		self.usercollection.update_one({'ssn': self.ssn}, {'$push': {'soundfiles': self.filename}}, upsert = True)
+		print('linked file to user')

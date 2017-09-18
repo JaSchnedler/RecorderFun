@@ -1,17 +1,16 @@
-import threading
 from utils import Recorder, Upload, InputClass, CardReader
-import time
+import time, os
 
-shouldrecord = True
 ssn = None
-ul = Upload()
+folder = 'soundfiles/'
+
 
 def waitforssn():
 	global ssn
 	print(ssn)
 	while ssn is None:
 		card = str(CardReader.read()).strip()
-		print("length of card: " + str(len(str(card))))
+		#print("length of card: " + str(len(str(card))))
 
 		if len(str(card)) == 10:
 			ssn = card
@@ -23,30 +22,40 @@ def waitforssn():
 	return True
 
 
+def mkdir():
+	global folder
+	if not os.path.exists(folder):
+		os.makedirs(folder)
+		print("Created dir: " + folder)
+
+
 def main():
-	global ssn
-	while True:
+	global ssn, folder
+	runbool = True
+	while runbool:
+		mkdir()
 		print("Program started")
 		if waitforssn():
-			thread1 = Recorder((str(ssn)))
-			thread1.start()
+			rec = Recorder(ssn, folder)
+			rec.run()
 		stop = None
 		while stop is None:
-			stop = input('enter something to stop the recording')
-			print("you entered: " + str(stop))
+			stop = input('Enter something to stop the recording')
+			print(' ')
+			if str(stop.strip()) == 'stop':
+				runbool = False
 			time.sleep(0.2)
 			print(stop)
-
-		thread1.stop()
-		thread1.join()
-		print("thread1 living: " + str(thread1.is_alive()))
-
-		while not ul.upload(ssn):
-			time.sleep(0.02)
-
+		if rec is not None:
+			rec.stop()
+		filename = ssn
+		if os.path.isfile(folder + filename + '.wav'):
+			ul = Upload(folder)
+			while not ul.upload(filename):
+				time.sleep(0.02)
+		else:
+			print('not working, folder + filename = ' + folder + filename)
 		ssn = None
 		stop = None
-
-		
 
 main()
